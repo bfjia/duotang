@@ -1,0 +1,105 @@
+
+---
+title: |
+  ![](img/CoVaRR-Net_Logo-600.png){width=1lm}  
+subtitle: "Genomic epidemiology analyses and mathematical modelling notebook"
+author: "Pillar 6"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+
+#coding and data
+library(tidyverse) # wrangling and everything really
+library(knitr) # Needed to set root directory
+
+library(lubridate) # dates are special
+
+#phylo-specific
+library(treeio)  # https://bioconductor.org/packages/release/bioc/html/treeio.html
+library(phylotools)
+library(tidytree)
+#library(phangorn)
+library(phytools)
+
+#plotting and tables
+library(ggplot2) # Work-horse plotting package
+#library(ggtree) #All things phylogenetic visualization
+library(ggfree)
+
+#colors
+library(RColorBrewer)
+library(colorspace)
+library(viridis)
+
+library(MASS)
+
+# used for passing data to JavaScript D3 framework
+library(r2d3)
+library(jsonlite)
+
+theme_set(theme_classic())
+
+# You would need to change this folder to be wherever you wanted the html file to be written.
+opts_knit$set(root.dir = getwd())
+```
+
+
+## Canadian trees {.tabset}  
+
+Here we present a subsampled phylogenetic snapshot of SARS-CoV-2 genomes from Canada.
+
+```{r message=FALSE}
+
+# load trees from files
+mltree <- read.tree("./data_needed/sample1.rtt.nwk")
+ttree <- read.tree("./data_needed/sample1.timetree.nwk")
+stopifnot(all(sort(mltree$tip.label) == sort(ttree$tip.label)))
+
+dateseq <- seq(ymd('2019-12-01'), ymd('2022-03-01'), by='3 month')
+
+# tips are labeled with [fasta name]_[lineage]_[coldate]
+# extracting just the first part makes it easier to link to metadata
+reduce.tipnames <- function(tip.label) {
+  sapply(tip.label, function(x) {
+    tokens <- strsplit(x, "_")[[1]]
+    ntok <- length(tokens)
+    paste(tokens[1:(ntok-2)], collapse='_')
+  })
+}
+mltree$tip.label <- reduce.tipnames(mltree$tip.label)
+ttree$tip.label <- reduce.tipnames(ttree$tip.label)
+
+# extract rows from metadata table that correspond to this tree
+metasub1 <- meta[meta$fasta.header.name %in% ttree$tip.label, 
+                 c("fasta.header.name", "sample.collected.by", 
+                   'submission.date', 'sample.collection.date',
+                   'province', 'purpose.of.sampling', 'purpose.of.sequencing', 
+                   'host.gender', 'host.age.bin', 
+                   'pango.group', 'lineage')]
+
+#scale to number of mutations
+mltree$edge.length <- mltree$edge.length*29903
+
+### omicron time tree
+metasub_omi <- metasub1[metasub1$pango.group %in% c("Omicron BA.1", "Omicron BA.1.1", "Omicron BA.2"), ]
+ttree_omi <- keep.tip(ttree, metasub_omi$fasta.header.name)
+
+### omicron diversity tree
+MLtree_omi<-keep.tip(mltree, metasub_omi$fasta.header.name)
+```
+
+
+### Time Tree {.active}
+```{r message=FALSE, echo = FALSE, fig.width=10, fig.height=25}
+tt.layout <- tree.layout(ttree, type='r')
+r2d3(data=toJSON(list(nodes=tt.layout$nodes, edges=tt.layout$edges)), 
+     script="tree.json", container="div", elementId="ttree-element")
+```
+
