@@ -22,16 +22,10 @@ library(knitr) # Needed to set root directory
 library(lubridate) # dates are special
 
 #phylo-specific
-library(treeio)  # https://bioconductor.org/packages/release/bioc/html/treeio.html
-library(phylotools)
-library(tidytree)
-#library(phangorn)
-library(phytools)
+library(ggfree)
 
 #plotting and tables
 library(ggplot2) # Work-horse plotting package
-#library(ggtree) #All things phylogenetic visualization
-library(ggfree)
 
 #colors
 library(RColorBrewer)
@@ -48,6 +42,50 @@ theme_set(theme_classic())
 
 # You would need to change this folder to be wherever you wanted the html file to be written.
 opts_knit$set(root.dir = getwd())
+```
+
+
+```{r load_data}
+
+# this can be made more compact for faster loading
+meta <- read.csv(gzfile("data_needed/virusseq.metadata.csv.gz"))
+meta$sample.collection.date <- as.Date(meta$sample.collection.date)
+meta$province <- meta$geo_loc_name..state.province.territory.
+
+
+# FIXME: restore pangolearn calls overriden by scorpio - issue #46
+plearn <- gsub(".+assignment ([A-Z]+\\.[0-9.]*).*", "\\1",
+               meta$note[meta$lineage=="None"])
+plearn[which(grepl("_", plearn))] <- "None"
+meta$lineage[meta$lineage=="None"] <- plearn
+
+#make a pango.group column
+VOCVOI <- data.frame(
+  name=c('Alpha', 'Beta', 'Gamma', 'Delta', 'Delta AY.25', 'Delta AY.27', 
+         'Lambda', 'Omicron BA.1', 'Omicron BA.1.1', 'Omicron BA.2', 'Mu',
+         'A.23.1', 'B.1.438.1'),
+  pattern=c('^B\\.1\\.1\\.7|^Q\\.', '^B\\.1\\.351', '^P\\.', 
+            '^B\\.1\\.617|^(?!AY\\.2[57])AY\\.', '^AY\\.25', '^AY\\.27', 
+            '^C\\.37|^C\\.37\\.1',
+            '^B\\.1\\.1\\.529|^BA\\.1$|^BA\\.1\\.[1-9][0-9]|BA\\.1\\.[2-9]$', 
+            '^BA\\.1\\.1$|^BA\\.1\\.1\\.[0-9]+$', 
+            '^BA\\.2', 
+            '^B\\.1\\.621', 
+            '^A\\.23\\.1', '^B\\.1\\.438\\.1'),
+  color=c('#B29C71', '#F08C3A', '#444444', '#A6CEE3', '#61A6A0',
+          '#438FC0', '#CD950C', '#8B0000', '#FA8072', '#FF0000',
+          '#BB4513', '#9AD378', '#3EA534')
+)
+variants <- sapply(VOCVOI$pattern, function(p) 
+  grepl(p, meta$lineage, perl=T))
+
+# verify that every row matches either 0 or 1 patterns
+# table(apply(variants, 1, sum))
+
+meta$pango.group <- 'other'
+meta$pango.group[apply(variants, 1, sum)==1] <- VOCVOI$name[unlist(apply(variants, 1, which))]
+meta$pango.group <- as.factor(meta$pango.group)
+
 ```
 
 
@@ -83,6 +121,8 @@ metasub1 <- meta[meta$fasta.header.name %in% ttree$tip.label,
                    'province', 'purpose.of.sampling', 'purpose.of.sequencing', 
                    'host.gender', 'host.age.bin', 
                    'pango.group', 'lineage')]
+# sort rows to match tip labels in tree
+metasub1 <- metasub1[match(ttree$tip.label, metasub1$fasta.header.name), ]
 
 #scale to number of mutations
 mltree$edge.length <- mltree$edge.length*29903
@@ -97,9 +137,45 @@ MLtree_omi<-keep.tip(mltree, metasub_omi$fasta.header.name)
 
 
 ### Time Tree {.active}
-```{r message=FALSE, echo = FALSE, fig.width=10, fig.height=25}
-tt.layout <- tree.layout(ttree, type='r')
-r2d3(data=toJSON(list(nodes=tt.layout$nodes, edges=tt.layout$edges)), 
-     script="tree.json", container="div", elementId="ttree-element")
+<style>
+  .scrollfig {
+    overflow-y: scroll;
+    height: 800px;
+  }
+</style>
+<div class="scrollfig">
+```{r message=FALSE, echo=FALSE, fig.width=10, fig.height=50}
+# ancestral reconstruction
+ttree2 <- ttree
+ttree2$edge.length[ttree2$edge.length == 0] <- 1e-4
+suppressWarnings({
+  res <- ace(metasub1$pango.group, ttree2, type="discrete", model="ER")
+})
+idx <- apply(res$lik.anc, 1, which.max)[2:nrow(res$lik.anc)]  # exclude root edge
+anc <- levels(as.factor(metasub1$pango.group))[idx]
+
+
+# colour nodes by PANGO group
+pal <- VOCVOI$color
+names(pal) <- VOCVOI$name
+pal["other"] <- '#777777'
+suppressWarnings(tt.layout <- tree.layout(ttree, type='r'))
+# root has no colour
+tt.layout$nodes$colour <- pal[c(as.character(metasub1$pango.group), NA, anc)]
+
+# propagate colours to edges
+tt.layout$edges$colour <- tt.layout$nodes$colour[tt.layout$edges$child]
+
+# append vertical edges
+v.edges <- t(sapply(split(tt.layout$edges, tt.layout$edges$parent), function(e) {
+  x <- e[1,]$x0
+  c(parent=NA, child=NA, length=NA, isTip=NA, colour=e[1,]$colour, 
+    x0=x, x1=x, y0=min(e$y0), y1=max(e$y0))
+}))
+edges <- rbind(tt.layout$edges, v.edges)  # tips, internals
+
+r2d3(data=toJSON(list(nodes=tt.layout$nodes, edges=edges)), 
+     script="js/tree.js", container="div", elementId="ttree-element")
 ```
+</div>
 
