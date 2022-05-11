@@ -53,12 +53,6 @@ meta$sample.collection.date <- as.Date(meta$sample.collection.date)
 meta$province <- meta$geo_loc_name..state.province.territory.
 
 
-# FIXME: restore pangolearn calls overriden by scorpio - issue #46
-plearn <- gsub(".+assignment ([A-Z]+\\.[0-9.]*).*", "\\1",
-               meta$note[meta$lineage=="None"])
-plearn[which(grepl("_", plearn))] <- "None"
-meta$lineage[meta$lineage=="None"] <- plearn
-
 #make a pango.group column
 VOCVOI <- data.frame(
   name=c('Alpha', 'Beta', 'Gamma', 'Delta', 'Delta AY.25', 'Delta AY.27', 
@@ -137,14 +131,8 @@ MLtree_omi<-keep.tip(mltree, metasub_omi$fasta.header.name)
 
 
 ### Time Tree {.active}
-<style>
-  .scrollfig {
-    overflow-y: scroll;
-    height: 800px;
-  }
-</style>
-<div class="scrollfig">
-```{r message=FALSE, echo=FALSE, fig.width=10, fig.height=50}
+
+```{r message=FALSE, echo=FALSE}
 # ancestral reconstruction
 ttree2 <- ttree
 ttree2$edge.length[ttree2$edge.length == 0] <- 1e-4
@@ -177,5 +165,5 @@ edges <- rbind(tt.layout$edges, v.edges)  # tips, internals
 r2d3(data=toJSON(list(nodes=tt.layout$nodes, edges=edges)), 
      script="js/tree.js", container="div", elementId="ttree-element")
 ```
-</div>
+
 

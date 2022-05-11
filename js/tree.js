@@ -12,17 +12,43 @@
 console = d3.window(div.node()).console;
 console.log(data);
 
-var svg = div.append("svg")
-             .attr("width", width+"px")
-             .attr("height", height+"px");
+var ldiv = div.append("div")
+              .style("width", "100px")
+              .style("height", height+"px")
+              .style("float", "left")
+              .style("display", "inline-block"),
+    rdiv = div.append("div")
+              .style("width", (width-105)+"px")
+              .style("height", height+"px")
+              .style("margin-left", "100px")
+              .style("display", "inline-block")
+              .style("overflow-y", "scroll");
 
-var margin = {top: 0, right: 50, bottom: 20, left: 50},
-    width = width - margin.left - margin.right,
-    height = height - margin.top - margin.bottom,
-    g = svg.append("g")
+var lsvg = ldiv.append("svg")
+              .attr("width", "100px")
+              .attr("height", height+"px");
+
+var treeheight = 4800,  // px
+    svg = rdiv.append("svg")
+              .attr("width", (width-100)+"px")
+              .attr("height", treeheight+"px");
+
+// add margins
+var margin = {top: 10, right: 10, bottom: 10, left: 10},
+    width = width - 100 - margin.left - margin.right,
+    height = treeheight - margin.top - margin.bottom;
+    
+var g = svg.append("g")
            .attr("height", height+"px")
            .attr("id", "treeplot-group")
-           .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+           .attr("transform", "translate(" + margin.left + "," + 
+                 margin.top + ")");
+
+var lg = lsvg.append("g")
+             .attr("height", height+"px")
+             .attr("id", "scroll-tree")
+             .attr("transform", "translate(" + margin.left + ',' + 
+                   margin.top + ")");
 
 // append tooltip element
 var tooltip = div.append("div")
@@ -36,7 +62,7 @@ var tooltip = div.append("div")
 // set up plotting scales
 var xmax = d3.max(data.edges, e => e.x1),
     ntips = data.nodes.filter(x => x['n.tips'] == 0).length,
-    xScale = d3.scaleLinear().domain([0, xmax]).range([0, width]),
+    xScale = d3.scaleLinear().domain([0, xmax]).range([0, width-100]),
     yScale = d3.scaleLinear().domain([0, ntips]).range([height, 40]);
 
 var treeplot = g.selectAll("lines")
