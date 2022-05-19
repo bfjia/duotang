@@ -132,7 +132,7 @@ MLtree_omi<-keep.tip(mltree, metasub_omi$fasta.header.name)
 
 ### Time Tree {.active}
 
-```{r message=FALSE, echo=FALSE}
+```{r message=FALSE, echo=FALSE, fig.width=8, fig.height=6}
 # ancestral reconstruction
 ttree2 <- ttree
 ttree2$edge.length[ttree2$edge.length == 0] <- 1e-4
