@@ -148,17 +148,32 @@ pal <- VOCVOI$color
 names(pal) <- VOCVOI$name
 pal["other"] <- '#777777'
 suppressWarnings(tt.layout <- tree.layout(ttree, type='r'))
-# root has no colour
-tt.layout$nodes$colour <- pal[c(as.character(metasub1$pango.group), NA, anc)]
+
+tt.layout$nodes$colour <- pal[c(as.character(metasub1$pango.group), # tips
+                                NA, # root has no colour
+                                anc)]  # internal nodes
 
 # propagate colours to edges
 tt.layout$edges$colour <- tt.layout$nodes$colour[tt.layout$edges$child]
 
+fieldnames <- c("province", "host.gender", "host.age.bin", "sample.collection.date", 
+                "sample.collected.by", "purpose.of.sampling", "purpose.of.sequencing",
+                "lineage", "pango.group")
+for (field in fieldnames) {
+  temp <- rep(NA, nrow(tt.layout$edges))
+  temp[tt.layout$edges$isTip] <- as.character(metasub1[[field]])
+  tt.layout$edges[[field]] <- temp
+}
+
+
 # append vertical edges
 v.edges <- t(sapply(split(tt.layout$edges, tt.layout$edges$parent), function(e) {
   x <- e[1,]$x0
-  c(parent=NA, child=NA, length=NA, isTip=NA, colour=e[1,]$colour, 
-    x0=x, x1=x, y0=min(e$y0), y1=max(e$y0))
+  c(parent=NA, child=NA, length=NA, isTip=NA, 
+    x0=x, x1=x, y0=min(e$y0), y1=max(e$y0),
+    colour=e[1,]$colour, sample.collected.by=NA, sample.collection.date=NA,
+    province=NA, host.gender=NA, host.age.bin=NA, purpose.of.sampling=NA,
+    purpose.of.sequencing=NA, lineage=NA, pango.group=NA)
 }))
 edges <- rbind(tt.layout$edges, v.edges)  # tips, internals
 
