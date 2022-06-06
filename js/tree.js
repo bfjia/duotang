@@ -142,7 +142,7 @@ var treeplot = g.selectAll("lines")
                             "</p>" 
                             ).style("visibility", "visible")
                              .style("left", (coords[0] + 100) + "px")
-                             .style("top", (coords[1] + yoffset - 50) + "px");    
+                             .style("top", (coords[1] + yoffset - rdiv.scrollTop - 50) + "px");    
                     }
                 })
                 .on("mouseout", function(e, d) {
