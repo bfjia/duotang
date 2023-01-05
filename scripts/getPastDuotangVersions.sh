@@ -28,7 +28,6 @@ sed -i '/data_needed/d' commitHistory2.txt
 
 mkdir -p archive
 echo "Here we store old versions of the duotang notebook:" > archive/readme.md
-echo "<ul>" >> archive/readme.md
 #recreate the duotang.html file from each commit and save it
 for i in `cat commitHistory2.txt`; do
 	echo $i;
@@ -39,13 +38,12 @@ for i in `cat commitHistory2.txt`; do
 	git show $id:$name > archive/$commit.html
 	if [ -s archive/$commit.html ]; then
         # echo the hyperlink to the readme
-        echo "<li>[$date]($commit.html)</li>" >> archive/readme.md
+        echo "- [$date]($commit.html)" >> archive/readme.md
 	else
 		# The file is empty, sometimes the symlink for follow pulls up random files not related to duotang,html, just delete it.
 		rm -f archive/$commit.html
 	fi
 done;
 #cleanup
-echo "</ul>" >> archive/readme.md
 rm commitHistory.txt
 rm commitHistory2.txt
